@@ -1,0 +1,100 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity timer is
+    generic(
+        clockFreq : integer := 50e6
+    );
+    port (
+        clk                 : in  std_logic;
+        nRst                : in  std_logic;
+        seg_s_dezena        : out std_logic_vector(6 downto 0);
+        seg_s_unidade       : out std_logic_vector(6 downto 0);
+        seg_m_dezena        : out std_logic_vector(6 downto 0);
+        seg_m_unidade       : out std_logic_vector(6 downto 0);
+        seg_h_dezena        : out std_logic_vector(6 downto 0);
+        seg_h_unidade       : out std_logic_vector(6 downto 0)
+    );
+end entity timer;
+
+architecture rtl of timer is
+    signal ticks          : unsigned(25 downto 0) := (others => '0');
+    signal s, m, h        : unsigned(5 downto 0) := (others => '0');
+    signal segundos_dezena, segundos_unidade   : unsigned(3 downto 0);
+    signal minutos_dezena, minutos_unidade     : unsigned(3 downto 0);
+    signal horas_dezena, horas_unidade         : unsigned(3 downto 0);
+begin
+    process(bin_in)
+    begin
+        case bin_in is
+            when "0000" => seg_out <= "0000001";
+            when "0001" => seg_out <= "1001111";
+            when "0010" => seg_out <= "0010010";
+            when "0011" => seg_out <= "0000110";
+            when "0100" => seg_out <= "1001100";
+            when "0101" => seg_out <= "0100100";
+            when "0110" => seg_out <= "0100000";
+            when "0111" => seg_out <= "0001111";
+            when "1000" => seg_out <= "0000000";
+            when "1009" => seg_out <= "0000100";
+            when others => seg_out <= "1111111";
+        end case;
+    end process;
+
+    process(clk, nRst)
+    begin
+        if nRst = '0' then
+            ticks <= (others => '0');
+            s <= (others => '0');
+            m <= (others => '0');
+            h <= (others => '0');
+        elsif rising_edge(clk) then
+            if ticks = clockFreq - 1 then
+                ticks <= (others => '0');
+                if s = 59 then
+                    s <= (others => '0');
+                    if m = 59 then
+                        m <= (others => '0');
+                        if h = 23 then
+                            h <= (others => '0');
+                        else
+                            h <= h + 1;
+                        end if;
+                    else
+                        m <= m + 1;
+                    end if;
+                else
+                    s <= s + 1;
+                end if;
+            else 
+                ticks <= ticks + 1;
+            end if;
+        end if;
+    end process;
+
+    segundos_dezena  <= s(5 downto 4);
+    segundos_unidade <= s(3 downto 0);
+    minutos_dezena   <= m(5 downto 4);
+    minutos_unidade  <= m(3 downto 0);
+    horas_dezena     <= h(4 downto 3);
+    horas_unidade    <= h(2 downto 0);
+
+    ssd_s_dezena: entity work.seven_segment_decoder
+        port map(bin_in => segundos_dezena, seg_out => seg_s_dezena);
+    
+    ssd_s_unidade: entity work.seven_segment_decoder
+        port map(bin_in => segundos_unidade, seg_out => seg_s_unidade);
+    
+    ssd_m_dezena: entity work.seven_segment_decoder
+        port map(bin_in => minutos_dezena, seg_out => seg_m_dezena);
+    
+    ssd_m_unidade: entity work.seven_segment_decoder
+        port map(bin_in => minutos_unidade, seg_out => seg_m_unidade);
+    
+    ssd_h_dezena: entity work.seven_segment_decoder
+        port map(bin_in => horas_dezena, seg_out => seg_h_dezena);
+    
+    ssd_h_unidade: entity work.seven_segment_decoder
+        port map(bin_in => horas_unidade, seg_out => seg_h_unidade);
+end architecture rtl;
